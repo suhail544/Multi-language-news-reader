@@ -1,24 +1,24 @@
 import express from "express";
-import { fetchRssFeed } from "./services/rss.service";
+import { importRssFeed } from "./services/rss.service";
 
 const app = express();
 
 app.use(express.json());
 
-app.get("/test-rss", async (req, res) => {
+app.post("/test-import", async (req, res) => {
   try {
-    const feed = await fetchRssFeed(
-      "https://feeds.bbci.co.uk/news/rss.xml"
+    const result = await importRssFeed(
+      "https://feeds.bbci.co.uk/news/rss.xml",
+      1, // BBC source ID
+      1  // English language ID
     );
 
-    res.json({
-      title: feed.title,
-      articleCount: feed.items.length,
-      articles: feed.items.slice(0, 5),
-    });
+    res.json(result);
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
-      message: "Failed to fetch RSS feed",
+      message: "Failed to import RSS feed",
     });
   }
 });
