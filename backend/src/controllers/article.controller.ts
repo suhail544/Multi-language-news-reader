@@ -1,8 +1,8 @@
-import {Request, Response } from "express";
-import {prisma} from "../services/database.service";
+import { Request, Response } from "express";
+import { prisma } from "../services/database.service";
 
 export const getArticles = async (req: Request, res: Response) => {
-    try {
+  try {
     const page = Math.max(
       1,
       Number.parseInt(String(req.query.page ?? "1"), 10) || 1,
@@ -14,50 +14,68 @@ export const getArticles = async (req: Request, res: Response) => {
     );
 
     const skip = (page - 1) * limit;
+
     const languageCode =
       typeof req.query.language === "string" ? req.query.language : undefined;
 
     const searchTerm =
       typeof req.query.search === "string" ? req.query.search : undefined;
 
-    const articles = await prisma.article.findMany({
-      where: {
-        ...(languageCode
-          ? {
-              language: {
-                code: languageCode,
-              },
-            }
-          : {}),
+    const where = {
+      ...(languageCode
+        ? {
+            language: {
+              code: languageCode,
+            },
+          }
+        : {}),
 
-        ...(searchTerm
-          ? {
-              title: {
-                contains: searchTerm,
-                mode: "insensitive",
-              },
-            }
-          : {}),
-      },
+      ...(searchTerm
+        ? {
+            title: {
+              contains: searchTerm,
+              mode: "insensitive" as const,
+            },
+          }
+        : {}),
+    };
 
-      include: {
-        source: true,
-        language: true,
-        category: true,
-      },
+    const [articles, total] = await Promise.all([
+      prisma.article.findMany({
+        where,
 
-      orderBy: {
-        publishedAt: "desc",
-      },
+        include: {
+          source: true,
+          language: true,
+          category: true,
+        },
 
-      skip,
-      take: limit,
+        orderBy: {
+          publishedAt: "desc",
+        },
+
+        skip,
+        take: limit,
+      }),
+
+      prisma.article.count({
+        where,
+      }),
+    ]);
+
+    res.json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      articles,
     });
 
     res.json({
       page,
       limit,
       total: articles.length,
+      totalPages: Math.ceil(articles.length / limit),
       articles,
     });
   } catch (error) {
@@ -67,4 +85,4 @@ export const getArticles = async (req: Request, res: Response) => {
       message: "Failed to fetch articles",
     });
   }
-}
+};
